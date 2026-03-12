@@ -1,0 +1,32 @@
+---
+- name: Configure MariaDB Database Server
+  hosts: prdx-db101
+  become: yes
+  tasks:
+    - name: Install MariaDB server and Python library
+      dnf:
+        name: 
+          - mariadb-server
+          - python3-PyMySQL
+        state: present
+
+    - name: Start and enable MariaDB
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Create project database
+      mysql_db:
+        name: ziyoteks_db
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock # Ensures it uses local socket
+
+    - name: Create database user
+      mysql_user:
+        name: db_user
+        password: password
+        priv: 'ziyoteks_db.*:ALL'
+        host: '%'
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock

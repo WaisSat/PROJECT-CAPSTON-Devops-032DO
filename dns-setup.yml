@@ -1,0 +1,11 @@
+---
+- name: Configure DNS Clients
+  hosts: webservers:prdx-haproxy101  # Target the webservers AND the LB
+  become: yes
+  tasks:
+    - name: Update /etc/resolv.conf
+      copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 192.168.56.10
+          nameserver 8.8.8.8

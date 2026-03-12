@@ -1,0 +1,11 @@
+---
+- name: Configure DNS Clients
+  hosts: all:!prdx-ansible101
+  become: yes
+  tasks:
+    - name: Update /etc/resolv.conf to allow external resolution
+      copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 192.168.56.10
+          nameserver 8.8.8.8
