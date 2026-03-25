@@ -1,0 +1,9 @@
+---
+- import_playbook: common.yml
+- import_playbook: common-packages.yml
+- import_playbook: deploy-docker.yml
+- import_playbook: dns-setup.yml
+- import_playbook: k8s-install.yml
+- import_playbook: setup-haproxy.yml
+- import_playbook: setup-db.yml
+- import_playbook: lab-app-deployment.yml

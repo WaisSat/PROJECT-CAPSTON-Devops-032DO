@@ -16,13 +16,20 @@
         state: started
         enabled: yes
 
+    - name: Allow MariaDB through Firewall
+      firewalld:
+        service: mysql
+        permanent: yes
+        state: enabled
+        immediate: yes
+
     - name: Create project database
       mysql_db:
         name: ziyoteks_db
         state: present
-        login_unix_socket: /var/lib/mysql/mysql.sock # Ensures it uses local socket
+        login_unix_socket: /var/lib/mysql/mysql.sock
 
-    - name: Create database user
+    - name: Create database user for Webservers
       mysql_user:
         name: db_user
         password: password
@@ -30,3 +37,24 @@
         host: '%'
         state: present
         login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Create sample table
+      mysql_query:
+        login_db: ziyoteks_db
+        login_unix_socket: /var/lib/mysql/mysql.sock
+        query: |
+          CREATE TABLE IF NOT EXISTS classmates (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(50),
+            state VARCHAR(50)
+          )
+
+    - name: Insert sample data
+      mysql_query:
+        login_db: ziyoteks_db
+        login_unix_socket: /var/lib/mysql/mysql.sock
+        query: |
+          INSERT IGNORE INTO classmates (id, name, state) VALUES 
+          (1, 'Wais', 'Virginia'),
+          (2, 'Kabul', 'Istanbul'),
+          (3, 'Sacramento', 'California')

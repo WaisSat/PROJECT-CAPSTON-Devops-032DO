@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-app-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab-app
+  template:
+    metadata:
+      labels:
+        app: lab-app
+    spec:
+      # This ensures the container has the right ID to read the file
+      securityContext:
+        runAsUser: 0 
+      containers:
+      - name: lab-app
+        image: lab-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: config-volume
+          mountPath: /var/www/html/rds.conf.php
+          subPath: rds.conf.php
+      volumes:
+      - name: config-volume
+        configMap:
+          name: rds-config
+          # 420 is the decimal for octal 0644 (readable by all)
+          defaultMode: 420
