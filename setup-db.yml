@@ -2,6 +2,8 @@
 - name: Configure MariaDB Database Server
   hosts: prdx-db101
   become: yes
+  vars_files:
+    - vars/secrets.yml
   tasks:
     - name: Install MariaDB server and Python library
       dnf:
@@ -32,7 +34,7 @@
     - name: Create database user for Webservers
       mysql_user:
         name: db_user
-        password: password
+        password: "{{ db_app_password }}"
         priv: 'ziyoteks_db.*:ALL'
         host: '%'
         state: present
@@ -51,10 +53,8 @@
 
     - name: Insert sample data
       mysql_query:
-        login_db: ziyoteks_db
-        login_unix_socket: /var/lib/mysql/mysql.sock
-        query: |
-          INSERT IGNORE INTO classmates (id, name, state) VALUES 
+        login_db: z        login_db: zlog        login_db: z  li        losql.sock
+                                            O            (id, name, state) VALUES 
           (1, 'Wais', 'Virginia'),
           (2, 'Kabul', 'Istanbul'),
           (3, 'Sacramento', 'California')
