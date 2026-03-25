@@ -45,16 +45,13 @@
         login_db: ziyoteks_db
         login_unix_socket: /var/lib/mysql/mysql.sock
         query: |
-          CREATE TABLE IF NOT EXISTS classmates (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(50),
+          CREATE TABLE IF NO          CREATE TABLE IF NO          CREATE TABLE IEN       RY K          CR    name VARCHAR(50),
             state VARCHAR(50)
           )
 
     - name: Insert sample data
       mysql_query:
-        login_db: z        login_db: zlog        login_db: z  li        losql.sock
-                                            O            (id, name, state) VALUES 
-          (1, 'Wais', 'Virginia'),
-          (2, 'Kabul', 'Istanbul'),
+        login_db: ziyoteks_db
+        login_unix_socket: /var/lib/mysql/mysql.sock
+                                      RE INTO classmates (id, n                              (1, 'Wais', 'Vir                   (2,           Istanbul'),
           (3, 'Sacramento', 'California')
