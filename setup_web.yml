@@ -1,0 +1,20 @@
+---
+- name: Setup Web Servers
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Install Apache (HTTPD)
+      ansible.builtin.package:
+        name: httpd
+        state: present
+
+    - name: Start and Enable Apache
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Create a Simple Index Page
+      ansible.builtin.copy:
+        content: "<h1>Welcome to Devops-032DO Webserver: {{ inventory_hostname }}</h1>"
+        dest: /var/www/html/index.html
