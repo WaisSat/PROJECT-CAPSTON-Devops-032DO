@@ -19,4 +19,4 @@ This repository contains the Infrastructure-as-Code (IaC) for a high-availabilit
    echo 'db_app_password: "your_password_here"' > vars/secrets.yml
    ```
 3. Run the master playbook: `ansible-playbook -i inventory site.yml`.
-4. Access the application at http://192.168.56.70:8080/rds.php.
+4. Access the application at http://192.168.56.70:30007/rds.php.
