@@ -15,6 +15,6 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
         run: |
-          echo "$SSH_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          ansible all -i inventory -m ping --private-key private_key.pem -u vagrant -o
+         - name: Run Ansible Ping
+           run: |
+            ansible all -i inventory -m ping
