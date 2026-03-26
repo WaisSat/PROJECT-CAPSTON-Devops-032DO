@@ -1,13 +1,33 @@
-- name: Run Ansible Ping
+name: Ansible Connectivity Check
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  ansible-ping:
+    runs-on: self-hosted  # This tells it to use your Vagrant VM runner
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Ansible Ping
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
-          ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
-          # 1. Create the key file from your GitHub Secret
-          echo "$SSH_KEY" > private_key.pem
-          
-          # 2. Set strict permissions (SSH won't work without this)
-          chmod 600 private_key.pem
-          
-          # 3. Run ping using the key and the vagrant user
-          ansible all -i inventory -m ping --private-key private_key.pem -u vagrant
+          # 1. Prepare the SSH directory
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # 2. Save the key from GitHub Secrets
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # 3. Run the ping command
+          # We use -u vagrant to match your VM user
+          ansible all -i inventory -m ping \
+            --private-key ~/.ssh/id_rsa \
+            -u vagrant \
+            --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
