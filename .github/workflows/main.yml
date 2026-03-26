@@ -1,20 +1,13 @@
-name: Local-Deploy-Check
-on: [push]
-
-jobs:
-  deploy:
-    # CHANGE THIS LINE from 'ubuntu-latest' to 'self-hosted'
-    runs-on: self-hosted
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: false
-      - name: Run Ansible Ping
+- name: Run Ansible Ping
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
+          ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
-         - name: Run Ansible Ping
-           run: |
-            ansible all -i inventory -m ping
+          # 1. Create the key file from your GitHub Secret
+          echo "$SSH_KEY" > private_key.pem
+          
+          # 2. Set strict permissions (SSH won't work without this)
+          chmod 600 private_key.pem
+          
+          # 3. Run ping using the key and the vagrant user
+          ansible all -i inventory -m ping --private-key private_key.pem -u vagrant
