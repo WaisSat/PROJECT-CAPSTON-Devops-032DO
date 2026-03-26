@@ -1,4 +1,4 @@
-name: Ansible Connectivity Check
+name: Ansible Deployment
 
 on:
   push:
@@ -6,28 +6,27 @@ on:
   workflow_dispatch:
 
 jobs:
-  ansible-ping:
-    runs-on: self-hosted  # This tells it to use your Vagrant VM runner
+  deploy-web:
+    runs-on: self-hosted
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Ansible Ping
+      - name: Setup SSH Key and Run Playbook
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
+          ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
-          # 1. Prepare the SSH directory
+          # 1. Prepare the SSH directory and Key
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-
-          # 2. Save the key from GitHub Secrets
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 3. Run the ping command
-          # We use -u vagrant to match your VM user
-          ansible all -i inventory -m ping \
+          # 2. Run the Playbook
+          # This targets the webservers defined in your setup_web.yml
+          ansible-playbook -i inventory setup_web.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
