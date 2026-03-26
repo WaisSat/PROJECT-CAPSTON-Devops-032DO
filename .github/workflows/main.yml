@@ -1,4 +1,4 @@
-name: Ansible Deployment
+name: Ansible Full Stack Deployment
 
 on:
   push:
@@ -6,9 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-web:
+  deploy-infrastructure:
     runs-on: self-hosted
-    # This removes the Node.js 20 deprecation warning
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     
@@ -16,25 +15,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH Key and Run Playbook
+      - name: Execute Ansible Playbooks
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Prepare the SSH directory
+          # 1. Setup the SSH key once for the whole run
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-
-          # 2. Save the key safely using a heredoc to preserve formatting
           cat <<EOF > ~/.ssh/id_rsa
           ${{ secrets.ANSIBLE_SSH_KEY }}
           EOF
-          
           chmod 600 ~/.ssh/id_rsa
 
-          # 3. Execute the Playbook
+          # 2. Deploy Web Servers
+          echo "Starting Web Server Deployment..."
           ansible-playbook -i inventory setup_web.yml \
+            --private-key ~/.ssh/id_rsa \
+            -u vagrant \
+            --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+          # 3. Deploy Load Balancer
+          echo "Starting Load Balancer Deployment..."
+          ansible-playbook -i inventory setup_lb.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
