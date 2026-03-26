@@ -16,16 +16,23 @@ jobs:
       - name: Setup SSH Key and Run Playbook
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
+          # Fixes host key prompts and cleans up the logs
           ANSIBLE_HOST_KEY_CHECKING: "False"
+          ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Prepare the SSH directory and Key
+          # 1. Prepare the SSH directory
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
+
+          # 2. Save the key safely (using quotes to preserve line breaks)
+          cat <<EOF > ~/.ssh/id_rsa
+          ${{ secrets.ANSIBLE_SSH_KEY }}
+          EOF
+          
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Run the Playbook
-          # This targets the webservers defined in your setup_web.yml
+          # 3. Run the Playbook
+          # We explicitly use the vagrant user and bypass SSH strict checking
           ansible-playbook -i inventory setup_web.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
