@@ -21,14 +21,23 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
+          # 1. Setup the SSH key safely
           mkdir -p ~/.ssh
           cat <<EOF > ~/.ssh/id_rsa
           ${{ secrets.ANSIBLE_SSH_KEY }}
           EOF
           chmod 600 ~/.ssh/id_rsa
 
+          # 2. Run Web Setup
           echo "--- Running Web Setup ---"
-          ansible-playbook -i inventory setup_web.yml --private-key ~/.ssh/id_rsa -u vagrant -o StrictHostKeyChecking=no
+          ansible-playbook -i inventory setup_web.yml \
+            --private-key ~/.ssh/id_rsa \
+            -u vagrant \
+            --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
+          # 3. Run LB Setup
           echo "--- Running LB Setup ---"
-          ansible-playbook -i inventory setup_lb.yml --private-key ~/.ssh/id_rsa -u vagrant -o StrictHostKeyChecking=no
+          ansible-playbook -i inventory setup_lb.yml \
+            --private-key ~/.ssh/id_rsa \
+            -u vagrant \
+            --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
