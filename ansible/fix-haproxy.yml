@@ -6,7 +6,6 @@
     - name: Check if firewalld is installed
       command: systemctl list-unit-files firewalld.service
       register: firewalld_check
-      # Use failed_when: false to ensure the play continues even if firewalld is missing
       failed_when: false
       changed_when: false
 
@@ -64,21 +63,10 @@
               server prdx-webserver103 192.168.56.23:80 check
 
     - name: Allow HTTP and Stats Port in firewall
-      firewalld:
-        port: "{{ item }}"
-        permanent: yes
-        state: enabled
-        # Removed immediate: yes to prevent D-Bus connection crashes
-      loop:
-        - 80/tcp
-        - 8080/tcp
-      when: "'firewalld.service' in firewalld_check.stdout"
-      ignore_errors: yes
-
-    - name: Reload firewall to apply changes (only if installed)
-      service:
-        name: firewalld
-        state: reloaded
+      shell: |
+        firewall-cmd --permanent --add-port=80/tcp
+        firewall-cmd --permanent --add-port=8080/tcp
+        firewall-cmd --reload
       when: "'firewalld.service' in firewalld_check.stdout"
       ignore_errors: yes
 
