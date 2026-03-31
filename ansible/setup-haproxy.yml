@@ -1,4 +1,5 @@
 ---
+# Forced Update v2
 - name: Configure HAProxy Load Balancer
   hosts: prdx-haproxy101
   become: yes
@@ -8,17 +9,12 @@
         name: firewalld
         state: started
         enabled: yes
+      ignore_errors: yes
 
     - name: Install HAProxy
       package:
         name: haproxy
         state: present
-
-    - name: Set SELinux boolean to allow HAProxy to connect to backends
-      seboolean:
-        name: haproxy_connect_any
-        state: yes
-        persistent: yes
 
     - name: Configure HAProxy with Stats Page
       copy:
@@ -32,7 +28,6 @@
               user        haproxy
               group       haproxy
               daemon
-
           defaults
               mode                    http
               log                     global
@@ -41,18 +36,15 @@
               timeout connect         10s
               timeout client          1m
               timeout server          1m
-
           listen stats
               bind *:8080
               stats enable
               stats uri /stats
               stats refresh 5s
               stats auth admin:password
-
           frontend http_front
               bind *:80
               default_backend web_servers
-
           backend web_servers
               balance roundrobin
               option httpchk HEAD /index.php
@@ -69,9 +61,10 @@
       loop:
         - 80/tcp
         - 8080/tcp
+      ignore_errors: yes
 
     - name: Ensure HAProxy is restarted
       service:
         name: haproxy
         state: restarted
-        enabled: yes# Version 1.1 - Force Update
+        enabled: yes
