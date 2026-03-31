@@ -9,7 +9,6 @@ jobs:
   deploy:
     runs-on: self-hosted
     env:
-      # This fixes the Node.js deprecation warning
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     
     steps:
@@ -27,17 +26,14 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. DEBUG: Let's see exactly where the files are
-          echo "--- Current Directory Structure ---"
-          ls -R
+          # 2. Find the correct inventory file (specifically the 'hosts' file)
+          # This prevents Ansible from trying to parse Vagrantfiles/PHP files
+          INV_PATH=$(find . -path "*/inventory/hosts" | head -n 1)
+          echo "Using Inventory: $INV_PATH"
 
-          # 3. FIND THE INVENTORY
-          # We search for the 'hosts' file specifically to avoid the 'Unable to parse' error
-          INV_PATH=$(find . -name "hosts" | grep "inventory" | head -n 1)
-          
-          # 4. RUN ANSIBLE
-          # We run from the root and point to the inventory found
-          echo "--- Starting Ansible ---"
+          # 3. Run the playbook
+          # We use the site.yml located in the root.
+          echo "--- Starting Ansible Execution ---"
           ansible-playbook -i "$INV_PATH" site.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
