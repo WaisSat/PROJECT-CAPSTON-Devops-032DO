@@ -1,0 +1,35 @@
+---
+- name: Configure Nagios Monitoring Server
+  hosts: prdx-nagios101
+  become: yes
+  tasks:
+    - name: Install Nagios and specific required plugins
+      dnf:
+        name:
+          - nagios
+          - nagios-plugins-http    # To monitor Webservers
+          - nagios-plugins-dns     # To monitor DNS
+          - nagios-plugins-load    # CPU monitoring
+          - nagios-plugins-disk    # Disk monitoring
+          - nagios-plugins-procs   # Process monitoring
+          - nagios-plugins-users   # User monitoring
+          - nagios-plugins-nrpe    # To talk to your clients
+          - httpd
+          - php
+        state: present
+
+    - name: Ensure Nagios and Apache are running
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - nagios
+        - httpd
+
+    - name: Allow HTTP in firewall
+      firewalld:
+        service: http
+        permanent: yes
+        state: enabled
+        immediate: yes

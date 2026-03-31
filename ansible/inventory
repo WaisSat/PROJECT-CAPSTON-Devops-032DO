@@ -1,0 +1,33 @@
+[all]
+prdx-ansible101    ansible_host=192.168.56.50
+prdx-dns101        ansible_host=192.168.56.10
+prdx-db101         ansible_host=192.168.56.11
+prdx-webserver101  ansible_host=192.168.56.21
+prdx-webserver102  ansible_host=192.168.56.22
+prdx-webserver103  ansible_host=192.168.56.23
+prdx-haproxy101    ansible_host=192.168.56.30
+prdx-nagios101     ansible_host=192.168.56.40
+prdx-dprimary101   ansible_host=192.168.56.60
+prdx-kube101       ansible_host=192.168.56.70
+
+[webservers]
+prdx-webserver101
+prdx-webserver102
+prdx-webserver103
+
+[dbservers]
+prdx-db101
+
+[lb]
+prdx-haproxy101
+
+[dns]
+prdx-dns101
+
+[all:vars]
+ansible_user=vagrant
+ansible_password=vagrant
+ansible_become=yes
+ansible_become_method=sudo
+ansible_become_password=vagrant
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'

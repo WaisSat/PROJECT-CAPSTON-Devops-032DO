@@ -1,0 +1,35 @@
+---
+- name: Install GitOps and Monitoring Tools
+  hosts: prdx-kube101
+  become: yes
+  vars:
+    # Use a clean PATH that includes common binary locations
+    bin_env:
+      PATH: "/usr/local/bin:/usr/bin:/bin:{{ ansible_env.PATH }}"
+      KUBECONFIG: "/home/vagrant/.kube/config"
+
+  tasks:
+    - name: Install Helm
+      shell: "curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Add Argo CD Helm Repo
+      shell: "helm repo add argo https://argoproj.github.io/argo-helm && helm repo update"
+      environment: "{{ bin_env }}"
+
+    - name: Create ArgoCD Namespace
+      shell: "kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -"
+      environment: "{{ bin_env }}"
+
+    - name: Install Argo CD via Helm
+      shell: "helm upgrade --install argocd argo/argo-cd --namespace argocd --values https://raw.githubusercontent.com/argoproj/argo-helm/main/charts/argo-cd/values.yaml"
+      environment: "{{ bin_env }}"
+
+    # NEW: Ensure the firewall doesn't block your NodePort (30007)
+    - name: Disable Firewall to allow NodePort access
+      systemd:
+        name: firewalld
+        state: stopped
+        enabled: no
+      ignore_errors: yes
