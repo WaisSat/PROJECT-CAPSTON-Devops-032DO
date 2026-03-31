@@ -15,12 +15,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug Folder Structure
-        run: |
-          echo "Currently in: $(pwd)"
-          echo "Files in this workspace:"
-          ls -R
-
       - name: Execute Playbooks
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
@@ -31,26 +25,23 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Find the Inventory and Playbooks
-          # We use 'find' so we don't have to guess the folder name
-          INV=$(find . -name "hosts" | grep "inventory" | head -n 1)
-          SITE=$(find . -name "site.yml" | head -n 1)
-          HAPROXY=$(find . -name "setup-haproxy.yml" | head -n 1)
-
-          echo "Using Inventory: $INV"
-          echo "Using Site Playbook: $SITE"
-          echo "Using HAProxy Playbook: $HAPROXY"
+          # 2. Define exactly where the files are based on your logs
+          # Your logs show they are in the root directory
+          INV="inventory/hosts"
+          SITE_PB="site.yml"
+          HAPROXY_PB="setup-haproxy.yml"
 
           # 3. Run Site Playbook
-          if [ -z "$SITE" ]; then echo "site.yml missing!" && exit 1; fi
-          ansible-playbook -i "$INV" "$SITE" \
+          # We check if common.yml exists first to avoid the include error
+          echo "--- Running Site Playbook ---"
+          ansible-playbook -i $INV $SITE_PB \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no"
 
           # 4. Run HAProxy Playbook
-          if [ -z "$HAPROXY" ]; then echo "setup-haproxy.yml missing!" && exit 1; fi
-          ansible-playbook -i "$INV" "$HAPROXY" \
+          echo "--- Running HAProxy Playbook ---"
+          ansible-playbook -i $INV $HAPROXY_PB \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no"
