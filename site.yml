@@ -1,9 +1,19 @@
 ---
-- import_playbook: common.yml
-- import_playbook: common-packages.yml
-- import_playbook: deploy-docker.yml
-- import_playbook: dns-setup.yml
-- import_playbook: k8s-install.yml
-- import_playbook: setup-haproxy.yml
-- import_playbook: setup-db.yml
-- import_playbook: lab-app-deployment.yml
+- name: Common Configuration
+  import_playbook: ansible/common.yml
+
+- name: Install Essential Tools
+  import_playbook: ansible/install-tools.yml
+
+- name: Kubernetes Installation
+  import_playbook: ansible/k8s-install.yml
+
+- name: Load Balancer Setup
+  import_playbook: ansible/setup-haproxy.yml
+
+- name: Database Setup
+  import_playbook: ansible/setup-db.yml
+
+# Commented out because these files were missing in your 'ls' output
+# - import_playbook: ansible/deploy-docker.yml
+# - import_playbook: ansible/dns-setup.yml

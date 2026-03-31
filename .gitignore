@@ -1,2 +1,4 @@
 .vagrant/
-*.log
+ansible/actions-runner/
+externals/
+bin/
