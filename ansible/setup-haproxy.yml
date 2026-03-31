@@ -74,4 +74,4 @@
       service:
         name: haproxy
         state: restarted
-        enabled: yes
+        enabled: yes# Version 1.1 - Force Update
