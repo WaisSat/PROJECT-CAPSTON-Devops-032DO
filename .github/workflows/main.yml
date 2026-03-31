@@ -15,45 +15,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug Folder Structure
+        run: |
+          echo "Currently in: $(pwd)"
+          echo "Files in this workspace:"
+          ls -R
+
       - name: Execute Playbooks
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
-          ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
           # 1. Setup the SSH key
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. DYNAMIC PATH DISCOVERY
-          # This finds the files no matter what folder they are in
-          INVENTORY=$(find . -name "hosts" | grep "inventory" | head -n 1)
-          SITE_PB=$(find . -name "site.yml" | head -n 1)
-          HAPROXY_PB=$(find . -name "setup-haproxy.yml" | head -n 1)
+          # 2. Find the Inventory and Playbooks
+          # We use 'find' so we don't have to guess the folder name
+          INV=$(find . -name "hosts" | grep "inventory" | head -n 1)
+          SITE=$(find . -name "site.yml" | head -n 1)
+          HAPROXY=$(find . -name "setup-haproxy.yml" | head -n 1)
 
-          echo "--- Discovery Results ---"
-          echo "Inventory: $INVENTORY"
-          echo "Site Playbook: $SITE_PB"
-          echo "HAProxy Playbook: $HAPROXY_PB"
-          echo "------------------------"
+          echo "Using Inventory: $INV"
+          echo "Using Site Playbook: $SITE"
+          echo "Using HAProxy Playbook: $HAPROXY"
 
-          # 3. Execute Site Playbook (Web/App)
-          if [ -f "$SITE_PB" ]; then
-            ansible-playbook -i "$INVENTORY" "$SITE_PB" \
-              --private-key ~/.ssh/id_rsa \
-              -u vagrant \
-              --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-          else
-            echo "Error: site.yml not found in repository!" && exit 1
-          fi
+          # 3. Run Site Playbook
+          if [ -z "$SITE" ]; then echo "site.yml missing!" && exit 1; fi
+          ansible-playbook -i "$INV" "$SITE" \
+            --private-key ~/.ssh/id_rsa \
+            -u vagrant \
+            --ssh-extra-args="-o StrictHostKeyChecking=no"
 
-          # 4. Execute HAProxy Playbook (Load Balancer)
-          if [ -f "$HAPROXY_PB" ]; then
-            ansible-playbook -i "$INVENTORY" "$HAPROXY_PB" \
-              --private-key ~/.ssh/id_rsa \
-              -u vagrant \
-              --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-          else
-            echo "Error: setup-haproxy.yml not found in repository!" && exit 1
-          fi
+          # 4. Run HAProxy Playbook
+          if [ -z "$HAPROXY" ]; then echo "setup-haproxy.yml missing!" && exit 1; fi
+          ansible-playbook -i "$INV" "$HAPROXY" \
+            --private-key ~/.ssh/id_rsa \
+            -u vagrant \
+            --ssh-extra-args="-o StrictHostKeyChecking=no"
