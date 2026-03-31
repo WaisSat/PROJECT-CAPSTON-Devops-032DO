@@ -3,74 +3,44 @@
   hosts: prdx-haproxy101
   become: yes
   tasks:
-    - name: Check if firewalld is installed
-      command: systemctl list-unit-files firewalld.service
-      register: firewalld_check
-      failed_when: false
-      changed_when: false
-
-    - name: Ensure firewalld is running (only if installed)
-      service:
-        name: firewalld
-        state: started
-        enabled: yes
-      when: "'firewalld.service' in firewalld_check.stdout"
-      ignore_errors: yes
-
     - name: Install HAProxy
       package:
         name: haproxy
         state: present
 
-    - name: Configure HAProxy with Stats Page
+    - name: Configure HAProxy Config
       copy:
         dest: /etc/haproxy/haproxy.cfg
         content: |
           global
-              log         127.0.0.1 local2
-              chroot      /var/lib/haproxy
-              pidfile     /var/run/haproxy.pid
-              maxconn     4000
-              user        haproxy
-              group       haproxy
+              user haproxy
+              group haproxy
               daemon
-
           defaults
-              mode                    http
-              log                     global
-              option                  httplog
-              option                  dontlognull
-              timeout connect         10s
-              timeout client          1m
-              timeout server          1m
-
-          listen stats
-              bind *:8080
-              stats enable
-              stats uri /stats
-              stats refresh 5s
-              stats auth admin:password
-
-          frontend http_front
+              mode http
+              timeout connect 5000ms
+              timeout client 50000ms
+              timeout server 50000ms
+          frontend http-in
               bind *:80
-              default_backend web_servers
-
-          backend web_servers
+              default_backend web-backend
+          backend web-backend
               balance roundrobin
-              option httpchk HEAD /index.php
-              server prdx-webserver101 192.168.56.21:80 check
-              server prdx-webserver102 192.168.56.22:80 check
-              server prdx-webserver103 192.168.56.23:80 check
+              server s1 192.168.56.21:80 check
+              server s2 192.168.56.22:80 check
 
-    - name: Allow HTTP and Stats Port in firewall
+    - name: Open Firewall Ports (Resilient Method)
       shell: |
-        firewall-cmd --permanent --add-port=80/tcp
-        firewall-cmd --permanent --add-port=8080/tcp
-        firewall-cmd --reload
-      when: "'firewalld.service' in firewalld_check.stdout"
+        if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld; then
+          firewall-cmd --permanent --add-port=80/tcp
+          firewall-cmd --permanent --add-port=8080/tcp
+          firewall-cmd --reload
+        else
+          echo "Firewall not running or not installed, skipping..."
+        fi
       ignore_errors: yes
 
-    - name: Ensure HAProxy is restarted
+    - name: Ensure HAProxy is started
       service:
         name: haproxy
         state: restarted
