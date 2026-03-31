@@ -1,60 +1,39 @@
 ---
-- name: Configure MariaDB Database Server
-  hosts: prdx-db101
+- name: Configure HAProxy Load Balancer
+  hosts: prdx-haproxy101
   become: yes
   tasks:
-    - name: Install MariaDB server and Python library
-      dnf:
-        name: 
-          - mariadb-server
-          - python3-PyMySQL
+    - name: Install HAProxy
+      package:
+        name: haproxy
         state: present
 
-    - name: Start and enable MariaDB
+    - name: Configure HAProxy Config
+      copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
+          global
+              user haproxy
+              group haproxy
+              daemon
+          defaults
+              mode http
+              timeout connect 5000ms
+              timeout client 50000ms
+              timeout server 50000ms
+          frontend http-in
+              bind *:80
+              default_backend web-backend
+          backend web-backend
+              balance roundrobin
+              server s1 192.168.56.21:80 check
+              server s2 192.168.56.22:80 check
+              server s3 192.168.56.23:80 check
+
+    # WE REMOVED THE FIREWALL TASK ENTIRELY HERE
+    
+    - name: Ensure HAProxy is restarted
       service:
-        name: mariadb
-        state: started
+        name: haproxy
+        state: restarted
         enabled: yes
-
-    - name: Allow MariaDB through Firewall
-      firewalld:
-        service: mysql
-        permanent: yes
-        state: enabled
-        immediate: yes
-
-    - name: Create project database
-      mysql_db:
-        name: ziyoteks_db
-        state: present
-        login_unix_socket: /var/lib/mysql/mysql.sock
-
-    - name: Create database user for Webservers
-      mysql_user:
-        name: db_user
-        password: password
-        priv: 'ziyoteks_db.*:ALL'
-        host: '%'
-        state: present
-        login_unix_socket: /var/lib/mysql/mysql.sock
-
-    - name: Create sample table
-      mysql_query:
-        login_db: ziyoteks_db
-        login_unix_socket: /var/lib/mysql/mysql.sock
-        query: |
-          CREATE TABLE IF NOT EXISTS classmates (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(50),
-            state VARCHAR(50)
-          )
-
-    - name: Insert sample data
-      mysql_query:
-        login_db: ziyoteks_db
-        login_unix_socket: /var/lib/mysql/mysql.sock
-        query: |
-          INSERT IGNORE INTO classmates (id, name, state) VALUES 
-          (1, 'Wais', 'Virginia'),
-          (2, 'Kabul', 'Istanbul'),
-          (3, 'Sacramento', 'California')
