@@ -1,0 +1,27 @@
+---
+- name: Prepare All Nodes with Common Configuration
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install common packages
+      yum:
+        name:
+          - curl
+          - git
+          - wget
+          - net-tools
+          - epel-release
+        state: present
+      ignore_errors: yes
+
+    - name: Ensure SSH directory exists for vagrant user
+      file:
+        path: /home/vagrant/.ssh
+        state: directory
+        mode: '0700'
+        owner: vagrant
+        group: vagrant
+
+    - name: Disable SELinux (common for Lab environments)
+      selinux:
+        state: disabled
