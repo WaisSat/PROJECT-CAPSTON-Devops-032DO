@@ -1,38 +1,81 @@
 Vagrant.configure("2") do |config|
-  # Define servers based on Project: Devops 032DO specifications
-  # Note: Rocky 9 used for modern servers, Ubuntu/Generic for older requirement compatibility
-  servers = [
-    { name: "dns101",        box: "gyptazy/rocky9.3-arm64", mem: 1024, ip: "192.168.56.10" },
-    { name: "db101",         box: "gyptazy/rocky9.3-arm64", mem: 1024, ip: "192.168.56.12" },
-    { name: "webserver101",  box: "ubuntu/arm64/22.04",     mem: 1024, ip: "192.168.56.13" },
-    { name: "webserver102",  box: "ubuntu/arm64/22.04",     mem: 1024, ip: "192.168.56.14" },
-    { name: "webserver103",  box: "ubuntu/arm64/22.04",     mem: 1024, ip: "192.168.56.15" },
-    { name: "haproxy101",    box: "ubuntu/arm64/22.04",     mem: 1024, ip: "192.168.56.16" },
-    { name: "nagios101",     box: "ubuntu/arm64/22.04",     mem: 1024, ip: "192.168.56.17" },
-    { name: "ansible101",    box: "gyptazy/rocky9.3-arm64", mem: 1024, ip: "192.168.56.11" },
-    { name: "dprimary101",   box: "gyptazy/rocky9.3-arm64", mem: 4096, ip: "192.168.56.18" },
-    { name: "kube101",       box: "gyptazy/rocky9.3-arm64", mem: 3072, ip: "192.168.56.19" }
-  ]
+  config.vm.box = "bandit145/centos_stream9_arm"
+  
+  # Provisioning: Ensure sudo works for Ansible without password prompts
+  config.vm.provision "shell", inline: <<-SHELL
+    echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/vagrant
+    chmod 0440 /etc/sudoers.d/vagrant
+  SHELL
 
-  servers.each do |server|
-    config.vm.define server[:name] do |node|
-      node.vm.box = server[:box]
-      node.vm.hostname = server[:name]
-      node.vm.network "private_network", ip: server[:ip]
+  config.vm.provider "vmware_desktop" do |v|
+    v.gui = false 
+    v.allowlist_verified = true
+  end
 
-      node.vm.provider "vmware_desktop" do |v|
-        v.gui = false
-        v.memory = server[:mem]
-      end
+  # --- REQUIRED SERVERS ---
 
-      # Provisioning: Ensure 'ansible' user exists with password 'password'
-      # and sudo privileges per project requirements
-      node.vm.provision "shell", inline: <<-SHELL
-        useradd -m -s /bin/bash ansible || true
-        echo "ansible:password" | chpasswd
-        echo "ansible ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ansible
-        chmod 0440 /etc/sudoers.d/ansible
-      SHELL
+  # DNS
+  config.vm.define "prdx-dns101" do |node|
+    node.vm.hostname = "prdx-dns101"
+    node.vm.network "private_network", ip: "192.168.56.10"
+    node.vm.provider "vmware_desktop" do |v| v.memory = 1024; v.cpus = 1; end
+  end
+
+  # Database
+  config.vm.define "prdx-db101" do |node|
+    node.vm.hostname = "prdx-db101"
+    node.vm.network "private_network", ip: "192.168.56.11"
+    node.vm.provider "vmware_desktop" do |v| v.memory = 1024; v.cpus = 1; end
+  end
+
+  # Web Servers
+  ["101", "102", "103"].each do |i|
+    config.vm.define "prdx-webserver#{i}" do |node|
+      node.vm.hostname = "prdx-webserver#{i}"
+      node.vm.network "private_network", ip: "192.168.56.2#{i.to_i - 100}"
+      node.vm.provider "vmware_desktop" do |v| v.memory = 1024; v.cpus = 1; end
     end
   end
+
+  # Load Balancer
+  config.vm.define "prdx-haproxy101" do |node|
+    node.vm.hostname = "prdx-haproxy101"
+    node.vm.network "private_network", ip: "192.168.56.30"
+    node.vm.provider "vmware_desktop" do |v| v.memory = 1024; v.cpus = 1; end
+  end
+
+  # Nagios
+  config.vm.define "prdx-nagios101" do |node|
+    node.vm.hostname = "prdx-nagios101"
+    node.vm.network "private_network", ip: "192.168.56.40"
+    node.vm.provider "vmware_desktop" do |v| v.memory = 1024; v.cpus = 1; end
+  end
+
+  # Ansible
+  config.vm.define "prdx-ansible101" do |node|
+    node.vm.hostname = "prdx-ansible101"
+    node.vm.network "private_network", ip: "192.168.56.50"
+    node.vm.provider "vmware_desktop" do |v| v.memory = 1024; v.cpus = 1; end
+  end
+
+  # Docker Primary
+  config.vm.define "prdx-dprimary101" do |node|
+    node.vm.hostname = "prdx-dprimary101"
+    node.vm.network "private_network", ip: "192.168.56.60"
+    node.vm.provider "vmware_desktop" do |v| v.memory = 4096; v.cpus = 4; end
+  end
+
+  # Kubernetes 
+  config.vm.define "prdx-kube101" do |node|
+    node.vm.hostname = "prdx-kube101"
+    node.vm.network "private_network", ip: "192.168.56.70"
+    node.vm.network "forwarded_port", guest: 8443, host: 8443
+    node.vm.network "forwarded_port", guest: 9090, host: 9090  
+    node.vm.provider "vmware_desktop" do |v| 
+      v.memory = 3072
+      v.cpus = 1
+    end
+  end
+
 end
+
