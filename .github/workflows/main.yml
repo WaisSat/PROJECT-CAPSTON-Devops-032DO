@@ -26,17 +26,31 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Run Web Setup 
-          # (Using site.yml since setup-webservers was deleted)
-          echo "--- Running Site Setup ---"
-          ansible-playbook -i inventory/hosts site.yml \
-            --private-key ~/.ssh/id_rsa \
-            -u vagrant \
-            --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          # 2. DEBUG: Show exactly where we are and what files exist
+          echo "--- Current Directory Structure ---"
+          ls -R
 
-          # 3. Run LB Setup (Corrected Path based on your 'ls')
-          echo "--- Running LB Setup ---"
-          ansible-playbook -i inventory/hosts setup-haproxy.yml \
-            --private-key ~/.ssh/id_rsa \
-            -u vagrant \
-            --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          # 3. Find and Run Playbooks
+          # We use 'find' to get the absolute path so we don't have to guess folders
+          SITE_PLAYBOOK=$(find . -name "site.yml" | head -n 1)
+          HAPROXY_PLAYBOOK=$(find . -name "setup-haproxy.yml" | head -n 1)
+          INVENTORY_PATH=$(find . -name "hosts" | grep "inventory" | head -n 1)
+
+          echo "Using Inventory: $INVENTORY_PATH"
+          echo "Using Site Playbook: $SITE_PLAYBOOK"
+          echo "Using HAProxy Playbook: $HAPROXY_PLAYBOOK"
+
+          # 4. Execute Playbooks
+          if [ -f "$SITE_PLAYBOOK" ]; then
+            ansible-playbook -i "$INVENTORY_PATH" "$SITE_PLAYBOOK" \
+              --private-key ~/.ssh/id_rsa \
+              -u vagrant \
+              --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          fi
+
+          if [ -f "$HAPROXY_PLAYBOOK" ]; then
+            ansible-playbook -i "$INVENTORY_PATH" "$HAPROXY_PLAYBOOK" \
+              --private-key ~/.ssh/id_rsa \
+              -u vagrant \
+              --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          fi
