@@ -19,29 +19,21 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
+          ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key
+          # 1. Setup the SSH key safely
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Define exactly where the files are based on your logs
-          # Your logs show they are in the root directory
+          # 2. Set Paths (Matches your 'ls' and 'site.yml' structure)
+          # We point specifically to the hosts file inside the inventory folder
           INV="inventory/hosts"
-          SITE_PB="site.yml"
-          HAPROXY_PB="setup-haproxy.yml"
 
-          # 3. Run Site Playbook
-          # We check if common.yml exists first to avoid the include error
-          echo "--- Running Site Playbook ---"
-          ansible-playbook -i $INV $SITE_PB \
+          # 3. Run the Master Playbook (site.yml)
+          # This will automatically trigger common.yml, dns-setup.yml, etc.
+          echo "--- Starting Full Stack Deployment ---"
+          ansible-playbook -i "$INV" site.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
-            --ssh-extra-args="-o StrictHostKeyChecking=no"
-
-          # 4. Run HAProxy Playbook
-          echo "--- Running HAProxy Playbook ---"
-          ansible-playbook -i $INV $HAPROXY_PB \
-            --private-key ~/.ssh/id_rsa \
-            -u vagrant \
-            --ssh-extra-args="-o StrictHostKeyChecking=no"
+            --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
