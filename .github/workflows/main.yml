@@ -9,6 +9,7 @@ jobs:
   deploy:
     runs-on: self-hosted
     env:
+      # This fixes the Node.js deprecation warning
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     
     steps:
@@ -21,17 +22,23 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup SSH Key
+          # 1. Setup the SSH key
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Run from the correct directory
-          # We 'cd' into the folder where site.yml lives so it can find common.yml
-          # Change 'ansible' below if your folder has a different name
-          cd ansible 
+          # 2. DEBUG: Let's see exactly where the files are
+          echo "--- Current Directory Structure ---"
+          ls -R
 
-          ansible-playbook -i ../inventory/hosts site.yml \
+          # 3. FIND THE INVENTORY
+          # We search for the 'hosts' file specifically to avoid the 'Unable to parse' error
+          INV_PATH=$(find . -name "hosts" | grep "inventory" | head -n 1)
+          
+          # 4. RUN ANSIBLE
+          # We run from the root and point to the inventory found
+          echo "--- Starting Ansible ---"
+          ansible-playbook -i "$INV_PATH" site.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no"
