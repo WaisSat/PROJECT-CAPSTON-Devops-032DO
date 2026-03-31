@@ -6,8 +6,9 @@
     - name: Check if firewalld is installed
       command: systemctl list-unit-files firewalld.service
       register: firewalld_check
+      # Use failed_when: false to ensure the play continues even if firewalld is missing
+      failed_when: false
       changed_when: false
-      ignore_errors: yes
 
     - name: Ensure firewalld is running (only if installed)
       service:
@@ -67,10 +68,17 @@
         port: "{{ item }}"
         permanent: yes
         state: enabled
-        immediate: yes
+        # Removed immediate: yes to prevent D-Bus connection crashes
       loop:
         - 80/tcp
         - 8080/tcp
+      when: "'firewalld.service' in firewalld_check.stdout"
+      ignore_errors: yes
+
+    - name: Reload firewall to apply changes (only if installed)
+      service:
+        name: firewalld
+        state: reloaded
       when: "'firewalld.service' in firewalld_check.stdout"
       ignore_errors: yes
 
