@@ -3,11 +3,18 @@
   hosts: prdx-haproxy101
   become: yes
   tasks:
-    - name: Ensure firewalld is running
+    - name: Check if firewalld is installed
+      command: systemctl list-unit-files firewalld.service
+      register: firewalld_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Ensure firewalld is running (only if installed)
       service:
         name: firewalld
         state: started
         enabled: yes
+      when: "'firewalld.service' in firewalld_check.stdout"
       ignore_errors: yes
 
     - name: Install HAProxy
@@ -64,6 +71,7 @@
       loop:
         - 80/tcp
         - 8080/tcp
+      when: "'firewalld.service' in firewalld_check.stdout"
       ignore_errors: yes
 
     - name: Ensure HAProxy is restarted
