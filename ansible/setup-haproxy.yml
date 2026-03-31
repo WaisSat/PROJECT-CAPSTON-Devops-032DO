@@ -1,14 +1,20 @@
 ---
-# Forced Update v2
 - name: Configure HAProxy Load Balancer
   hosts: prdx-haproxy101
   become: yes
   tasks:
-    - name: Ensure firewalld is running
+    - name: Check if firewalld is installed
+      command: systemctl list-unit-files firewalld.service
+      register: firewalld_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Ensure firewalld is running (only if installed)
       service:
         name: firewalld
         state: started
         enabled: yes
+      when: "'firewalld.service' in firewalld_check.stdout"
       ignore_errors: yes
 
     - name: Install HAProxy
@@ -28,6 +34,7 @@
               user        haproxy
               group       haproxy
               daemon
+
           defaults
               mode                    http
               log                     global
@@ -36,15 +43,18 @@
               timeout connect         10s
               timeout client          1m
               timeout server          1m
+
           listen stats
               bind *:8080
               stats enable
               stats uri /stats
               stats refresh 5s
               stats auth admin:password
+
           frontend http_front
               bind *:80
               default_backend web_servers
+
           backend web_servers
               balance roundrobin
               option httpchk HEAD /index.php
@@ -61,6 +71,7 @@
       loop:
         - 80/tcp
         - 8080/tcp
+      when: "'firewalld.service' in firewalld_check.stdout"
       ignore_errors: yes
 
     - name: Ensure HAProxy is restarted
