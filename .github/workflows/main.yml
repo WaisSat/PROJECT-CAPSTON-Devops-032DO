@@ -21,19 +21,19 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key safely
+          # 1. Setup the SSH key
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Run Web Setup (Updated path to 'ansible/' folder)
+          # 2. Run Web Setup (Using the 'ansible/' folder path)
           echo "--- Running Web Setup ---"
           ansible-playbook -i inventory/hosts ansible/setup-webservers.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
-          # 3. Run LB Setup (Removed 'archive/' path!)
+          # 3. Run LB Setup (Updated to match your clean 'ansible/' folder)
           echo "--- Running LB Setup ---"
           ansible-playbook -i inventory/hosts ansible/setup-haproxy.yml \
             --private-key ~/.ssh/id_rsa \
