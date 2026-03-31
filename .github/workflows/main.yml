@@ -19,21 +19,16 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
-          ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key safely
+          # 1. Setup the SSH key
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Set Paths (Matches your 'ls' and 'site.yml' structure)
-          # We point specifically to the hosts file inside the inventory folder
-          INV="inventory/hosts"
-
-          # 3. Run the Master Playbook (site.yml)
-          # This will automatically trigger common.yml, dns-setup.yml, etc.
-          echo "--- Starting Full Stack Deployment ---"
-          ansible-playbook -i "$INV" site.yml \
+          # 2. Run the Master Playbook
+          # We use -i inventory/hosts because that is your folder structure
+          echo "--- Starting Full Deployment ---"
+          ansible-playbook -i inventory/hosts site.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
