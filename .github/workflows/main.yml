@@ -26,16 +26,17 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Run Web Setup (Using the 'ansible/' folder path)
-          echo "--- Running Web Setup ---"
-          ansible-playbook -i inventory/hosts ansible/setup-webservers.yml \
+          # 2. Run Web Setup 
+          # (Using site.yml since setup-webservers was deleted)
+          echo "--- Running Site Setup ---"
+          ansible-playbook -i inventory/hosts site.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
-          # 3. Run LB Setup (Updated to match your clean 'ansible/' folder)
+          # 3. Run LB Setup (Corrected Path based on your 'ls')
           echo "--- Running LB Setup ---"
-          ansible-playbook -i inventory/hosts ansible/setup-haproxy.yml \
+          ansible-playbook -i inventory/hosts setup-haproxy.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
             --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
