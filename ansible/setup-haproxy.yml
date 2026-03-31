@@ -2,6 +2,8 @@
 - name: Configure HAProxy Load Balancer
   hosts: prdx-haproxy101
   become: yes
+  vars:
+    refresh_check: "v4-final-push"
   tasks:
     - name: Install HAProxy
       package:
