@@ -1,3 +1,4 @@
+# Version 3 Forced Update
 ---
 - name: Configure HAProxy Load Balancer
   hosts: prdx-haproxy101
