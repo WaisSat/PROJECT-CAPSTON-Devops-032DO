@@ -21,19 +21,17 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key
+          # 1. Setup SSH Key
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. FIX: Ensure we are in the right directory and use a SPECIFIC inventory
-          # We point ONLY to inventory/hosts to stop the warnings about PHP/SQL files
-          
-          echo "--- Starting Clean Deployment ---"
-          
-          # 3. Run the Playbook
-          # We use --limit or specific paths to ensure Ansible stays on track
-          ansible-playbook -i inventory/hosts site.yml \
+          # 2. Run from the correct directory
+          # We 'cd' into the folder where site.yml lives so it can find common.yml
+          # Change 'ansible' below if your folder has a different name
+          cd ansible 
+
+          ansible-playbook -i ../inventory/hosts site.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
-            --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+            --ssh-extra-args="-o StrictHostKeyChecking=no"
