@@ -13,21 +13,32 @@
         dest: /etc/haproxy/haproxy.cfg
         content: |
           global
-              user haproxy
-              group haproxy
+              log         127.0.0.1 local2
+              chroot      /var/lib/haproxy
+              pidfile     /var/run/haproxy.pid
+              maxconn     4000
+              user        haproxy
+              group       haproxy
               daemon
+
           defaults
-              mode http
-              timeout connect 5000ms
-              timeout client 50000ms
-              timeout server 50000ms
+              mode                    http
+              log                     global
+              option                  httplog
+              option                  dontlognull
+              timeout connect         10s
+              timeout client          1m
+              timeout server          1m
+
           frontend http-in
               bind *:80
               default_backend web-backend
+
           backend web-backend
               balance roundrobin
-              server s1 192.168.56.21:80 check
-              server s2 192.168.56.22:80 check
+              server prdx-webserver101 192.168.56.21:80 check
+              server prdx-webserver102 192.168.56.22:80 check
+              server prdx-webserver103 192.168.56.23:80 check
 
     - name: Open Firewall Ports (Resilient Method)
       shell: |
