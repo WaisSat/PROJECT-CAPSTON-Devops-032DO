@@ -3,12 +3,17 @@
   hosts: prdx-haproxy101
   become: yes
   tasks:
+    - name: Ensure firewalld is running
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+      ignore_errors: yes
+
     - name: Install HAProxy
       package:
         name: haproxy
         state: present
-
-    # SELinux task removed because it is disabled on the host
 
     - name: Configure HAProxy with Stats Page
       copy:
@@ -59,6 +64,7 @@
       loop:
         - 80/tcp
         - 8080/tcp
+      ignore_errors: yes
 
     - name: Ensure HAProxy is restarted
       service:
