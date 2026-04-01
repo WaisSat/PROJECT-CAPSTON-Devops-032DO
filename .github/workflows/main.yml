@@ -26,13 +26,21 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Find the correct inventory file (specifically the 'hosts' file)
-          # This prevents Ansible from trying to parse Vagrantfiles/PHP files
-          INV_PATH=$(find . -path "*/inventory/hosts" | head -n 1)
+          # 2. Set the explicit inventory path
+          # Based on your file structure, it should be in ansible/inventory/hosts
+          INV_PATH="ansible/inventory/hosts"
+
+          # 3. Verify the inventory file exists to prevent a root-directory scan
+          if [ ! -f "$INV_PATH" ]; then
+            echo "Error: Inventory file not found at $INV_PATH"
+            echo "Searching for valid 'hosts' files to help you debug:"
+            find . -name "hosts"
+            exit 1
+          fi
+
           echo "Using Inventory: $INV_PATH"
 
-          # 3. Run the playbook
-          # We use the site.yml located in the root.
+          # 4. Run the playbook
           echo "--- Starting Ansible Execution ---"
           ansible-playbook -i "$INV_PATH" site.yml \
             --private-key ~/.ssh/id_rsa \
