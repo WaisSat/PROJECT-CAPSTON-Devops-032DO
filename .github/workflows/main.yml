@@ -8,7 +8,9 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
-    # We force the use of bash to ensure commands like 'find' and '$HOME' work 
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    
     defaults:
       run:
         shell: bash
@@ -21,33 +23,40 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
+          ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Ensure we are in the right spot
-          cd $GITHUB_WORKSPACE
-          
-          # 2. Setup SSH Key with a check
+          # 1. Setup the SSH key for the vagrant user
           mkdir -p $HOME/.ssh
-          if [ -z "$SSH_KEY" ]; then echo "SECRET ANSIBLE_SSH_KEY IS EMPTY"; exit 1; fi
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 3. Find files using absolute paths within the workspace
-          INV_PATH=$(find . -maxdepth 3 -name "hosts" | head -n 1)
-          PLAYBOOK_PATH=$(find . -maxdepth 3 -name "site.yml" | head -n 1)
+          # 2. Set explicit paths based on your repository structure
+          # site.yml is inside the ansible/ folder
+          # inventory file 'hosts' is inside ansible/inventory/
+          INV_PATH="ansible/inventory/hosts"
+          PLAYBOOK_PATH="ansible/site.yml"
 
-          echo "DEBUG: Inventory located at $INV_PATH"
-          echo "DEBUG: Playbook located at $PLAYBOOK_PATH"
-
-          if [[ -z "$INV_PATH" || -z "$PLAYBOOK_PATH" ]]; then
-            echo "Error: Critical files missing. Files in directory:"
-            ls -R
+          # 3. Verification check
+          echo "Checking for inventory at: $INV_PATH"
+          if [ ! -f "$INV_PATH" ]; then
+            echo "!!! ERROR: Inventory file not found at $INV_PATH !!!"
+            echo "Contents of ansible/inventory/:"
+            ls -la ansible/inventory/
             exit 1
           fi
 
-          # 4. Run Ansible with absolute binary path if possible
-          # We use -v to get enough info without flooding the screen
+          echo "Checking for playbook at: $PLAYBOOK_PATH"
+          if [ ! -f "$PLAYBOOK_PATH" ]; then
+            echo "!!! ERROR: Playbook site.yml not found at $PLAYBOOK_PATH !!!"
+            exit 1
+          fi
+
+          # 4. Run the playbook
+          # -e passes the sudo password
+          # -o IdentitiesOnly ensures we use the key we just created
+          echo "--- Starting Ansible Execution ---"
           ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" -v
+            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
