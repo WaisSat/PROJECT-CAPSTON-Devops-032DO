@@ -25,23 +25,22 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key for the vagrant user
+          # 1. Setup the SSH key
           mkdir -p $HOME/.ssh
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Set explicit paths based on your repository structure
-          # site.yml is inside the ansible/ folder
-          # inventory file 'hosts' is inside ansible/inventory/
-          INV_PATH="ansible/inventory/hosts"
+          # 2. Set explicit paths based on your logs
+          # In your repo, 'inventory' is a file inside the 'ansible' folder
+          INV_PATH="ansible/inventory"
           PLAYBOOK_PATH="ansible/site.yml"
 
           # 3. Verification check
-          echo "Checking for inventory at: $INV_PATH"
+          echo "Checking for inventory file at: $INV_PATH"
           if [ ! -f "$INV_PATH" ]; then
             echo "!!! ERROR: Inventory file not found at $INV_PATH !!!"
-            echo "Contents of ansible/inventory/:"
-            ls -la ansible/inventory/
+            echo "Listing files in ansible/ folder for debugging:"
+            ls -F ansible/
             exit 1
           fi
 
@@ -52,8 +51,6 @@ jobs:
           fi
 
           # 4. Run the playbook
-          # -e passes the sudo password
-          # -o IdentitiesOnly ensures we use the key we just created
           echo "--- Starting Ansible Execution ---"
           ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
             --private-key $HOME/.ssh/id_rsa \
