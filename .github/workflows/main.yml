@@ -13,7 +13,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: [actions/checkout@v4](https://github.com/WaisSat/PROJECT-CAPSTON-Devops-032DO/settings)
 
       - name: Execute Playbooks
         env:
@@ -26,23 +26,22 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # 2. Set the explicit inventory path
-          # Based on your file structure, it should be in ansible/inventory/hosts
-          INV_PATH="ansible/inventory/hosts"
+          # 2. Dynamically find the inventory file
+          # This looks for a file named 'hosts' anywhere in the repo
+          INV_PATH=$(find . -name "hosts" | head -n 1)
 
-          # 3. Verify the inventory file exists to prevent a root-directory scan
-          if [ ! -f "$INV_PATH" ]; then
-            echo "Error: Inventory file not found at $INV_PATH"
-            echo "Searching for valid 'hosts' files to help you debug:"
-            find . -name "hosts"
+          if [ -z "$INV_PATH" ]; then
+            echo "Error: Could not find an inventory file named 'hosts' in the repository."
             exit 1
           fi
+          
+          echo "Using Inventory found at: $INV_PATH"
 
-          echo "Using Inventory: $INV_PATH"
-
-          # 4. Run the playbook
+          # 3. Run the playbook
+          # We add '-e' to pass the become password for your vagrant user
           echo "--- Starting Ansible Execution ---"
           ansible-playbook -i "$INV_PATH" site.yml \
             --private-key ~/.ssh/id_rsa \
             -u vagrant \
+            -e "ansible_become_password=vagrant" \
             --ssh-extra-args="-o StrictHostKeyChecking=no"
