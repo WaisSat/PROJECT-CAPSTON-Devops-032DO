@@ -21,31 +21,29 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key for the 'vagrant' user
+          # 1. Debug: Check environment
+          echo "Current User: $(whoami)"
+          echo "Current Directory: $(pwd)"
+          
+          # 2. Setup the SSH key
           mkdir -p $HOME/.ssh
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
-
-          # 2. Dynamically find the inventory and playbook paths
-          # This ensures it works even if the files are inside an 'ansible/' folder
+          
+          # 3. Find files and FAIL LOUDLY if they are missing
           INV_PATH=$(find . -name "hosts" | head -n 1)
           PLAYBOOK_PATH=$(find . -name "site.yml" | head -n 1)
 
-          # Debug: Print found paths to the GitHub log
-          echo "Found Inventory: $INV_PATH"
-          echo "Found Playbook: $PLAYBOOK_PATH"
+          if [ -z "$INV_PATH" ]; then echo "!!! INVENTORY NOT FOUND !!!"; exit 1; fi
+          if [ -z "$PLAYBOOK_PATH" ]; then echo "!!! PLAYBOOK NOT FOUND !!!"; exit 1; fi
 
-          if [ -z "$INV_PATH" ] || [ -z "$PLAYBOOK_PATH" ]; then
-            echo "Error: Could not find inventory ('hosts') or playbook ('site.yml') in the repo."
-            exit 1
-          fi
+          echo "Using Inventory: $INV_PATH"
+          echo "Using Playbook: $PLAYBOOK_PATH"
 
-          # 3. Run the playbook
-          # -e passes the become password for the vagrant user
-          # -o IdentitiesOnly=yes ensures it uses the key we just created
+          # 4. Run Ansible with verbose output (-vv) to see exactly where it stops
           echo "--- Starting Ansible Execution ---"
           ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
+            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" -vv
