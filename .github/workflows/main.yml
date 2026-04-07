@@ -8,9 +8,11 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-    
+    # We force the use of bash to ensure commands like 'find' and '$HOME' work 
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,31 +21,33 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
-          ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Debug: Check environment
-          echo "Current User: $(whoami)"
-          echo "Current Directory: $(pwd)"
+          # 1. Ensure we are in the right spot
+          cd $GITHUB_WORKSPACE
           
-          # 2. Setup the SSH key
+          # 2. Setup SSH Key with a check
           mkdir -p $HOME/.ssh
+          if [ -z "$SSH_KEY" ]; then echo "SECRET ANSIBLE_SSH_KEY IS EMPTY"; exit 1; fi
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
-          
-          # 3. Find files and FAIL LOUDLY if they are missing
-          INV_PATH=$(find . -name "hosts" | head -n 1)
-          PLAYBOOK_PATH=$(find . -name "site.yml" | head -n 1)
 
-          if [ -z "$INV_PATH" ]; then echo "!!! INVENTORY NOT FOUND !!!"; exit 1; fi
-          if [ -z "$PLAYBOOK_PATH" ]; then echo "!!! PLAYBOOK NOT FOUND !!!"; exit 1; fi
+          # 3. Find files using absolute paths within the workspace
+          INV_PATH=$(find . -maxdepth 3 -name "hosts" | head -n 1)
+          PLAYBOOK_PATH=$(find . -maxdepth 3 -name "site.yml" | head -n 1)
 
-          echo "Using Inventory: $INV_PATH"
-          echo "Using Playbook: $PLAYBOOK_PATH"
+          echo "DEBUG: Inventory located at $INV_PATH"
+          echo "DEBUG: Playbook located at $PLAYBOOK_PATH"
 
-          # 4. Run Ansible with verbose output (-vv) to see exactly where it stops
-          echo "--- Starting Ansible Execution ---"
+          if [[ -z "$INV_PATH" || -z "$PLAYBOOK_PATH" ]]; then
+            echo "Error: Critical files missing. Files in directory:"
+            ls -R
+            exit 1
+          fi
+
+          # 4. Run Ansible with absolute binary path if possible
+          # We use -v to get enough info without flooding the screen
           ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" -vv
+            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" -v
