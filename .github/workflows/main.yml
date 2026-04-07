@@ -13,7 +13,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: [actions/checkout@v4](https://github.com/WaisSat/PROJECT-CAPSTON-Devops-032DO/settings)
+        uses: actions/checkout@v4
 
       - name: Execute Playbooks
         env:
@@ -21,27 +21,28 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          # 1. Setup the SSH key with absolute paths
+          mkdir -p $HOME/.ssh
+          echo "$SSH_KEY" > $HOME/.ssh/id_rsa
+          chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Dynamically find the inventory file
-          # This looks for a file named 'hosts' anywhere in the repo
+          # 2. Dynamically find the inventory AND the playbook
           INV_PATH=$(find . -name "hosts" | head -n 1)
+          PLAYBOOK_PATH=$(find . -name "site.yml" | head -n 1)
 
-          if [ -z "$INV_PATH" ]; then
-            echo "Error: Could not find an inventory file named 'hosts' in the repository."
+          if [ -z "$INV_PATH" ] || [ -z "$PLAYBOOK_PATH" ]; then
+            echo "Error: Missing inventory ($INV_PATH) or playbook ($PLAYBOOK_PATH)"
             exit 1
           fi
           
-          echo "Using Inventory found at: $INV_PATH"
+          echo "Using Inventory: $INV_PATH"
+          echo "Using Playbook: $PLAYBOOK_PATH"
 
           # 3. Run the playbook
-          # We add '-e' to pass the become password for your vagrant user
+          # We force 'IdentitiesOnly' so it doesn't try to use the runner's default keys
           echo "--- Starting Ansible Execution ---"
-          ansible-playbook -i "$INV_PATH" site.yml \
-            --private-key ~/.ssh/id_rsa \
+          ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
+            --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-extra-args="-o StrictHostKeyChecking=no"
+            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
