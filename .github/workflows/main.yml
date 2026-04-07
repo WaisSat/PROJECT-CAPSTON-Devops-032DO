@@ -25,25 +25,19 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key for the vagrant user
+          # 1. Setup the SSH key
           mkdir -p $HOME/.ssh
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Define Working Paths (Verified from your logs)
+          # 2. Define Paths (Verified from logs)
           INV_PATH="ansible/inventory"
           PLAYBOOK_PATH="ansible/site.yml"
 
-          # 3. Pre-flight Check: Ensure all imported files exist
-          # This fixes the 'common-packages.yml' error by checking the directory first
-          echo "Checking directory for expected Ansible files..."
-          ls -F ansible/
-
-          # 4. Run the playbook
-          # -v provides enough detail to see which task is running
+          # 3. Run the playbook
           echo "--- Starting Ansible Execution ---"
           ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" -v
+            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
