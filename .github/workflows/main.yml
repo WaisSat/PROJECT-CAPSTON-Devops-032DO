@@ -23,6 +23,8 @@ jobs:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
+          # FIX: Disable SSH Multiplexing to stop the "muxclient" error
+          ANSIBLE_SSH_CONTROL_PATH: /dev/null
         run: |
           # 1. Setup the SSH key
           mkdir -p $HOME/.ssh
@@ -32,16 +34,16 @@ jobs:
           # 2. Define Paths
           INV_PATH="ansible/inventory"
           
-          # 3. Run playbooks with --forks 3 to prevent Out of Memory (Error 137)
+          # 3. Run playbooks with --forks 3 (Memory fix) and -o ControlMaster=no (SSH fix)
           echo "--- Starting Ansible Execution ---"
           
-          # Run common config (Limited to 3 parallel workers)
+          # Run common config
           ansible-playbook -i "$INV_PATH" ansible/common.yml \
             --forks 3 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no"
+            --ssh-common-args="-o StrictHostKeyChecking=no -o ControlMaster=no"
 
           # Run Database setup
           ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
@@ -49,7 +51,7 @@ jobs:
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no"
+            --ssh-common-args="-o StrictHostKeyChecking=no -o ControlMaster=no"
 
           # Run Main Site deployment
           ansible-playbook -i "$INV_PATH" ansible/site.yml \
@@ -57,4 +59,4 @@ jobs:
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no"
+            --ssh-common-args="-o StrictHost
