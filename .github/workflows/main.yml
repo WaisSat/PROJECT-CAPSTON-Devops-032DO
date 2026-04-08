@@ -10,6 +10,9 @@ jobs:
     runs-on: self-hosted
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      # Stop Ansible from holding massive fact data in memory
+      ANSIBLE_GATHERING: explicit
+      ANSIBLE_CACHE_PLUGIN: memory
     
     defaults:
       run:
@@ -29,25 +32,24 @@ jobs:
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Clear memory cache to prevent 137 errors
+          # 2. Force the Controller to drop all background junk
           sudo sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
 
-          # 3. Define the list of playbooks you WANT to run
-          # I removed 'deploy-docker.yml' because it was causing the crash
-          # We will run them one by one only if they exist
+          # 3. Define Playbooks (Added setup-db back in)
           PLAYBOOKS=("common.yml" "dns-setup.yml" "setup-db.yml" "setup-haproxy.yml" "lab-app-deployment.yml")
 
-          echo "--- Starting Smart Ansible Execution ---"
+          echo "--- Starting Ultra-Lean Execution ---"
           for pb in "${PLAYBOOKS[@]}"; do
             if [ -f "ansible/$pb" ]; then
               echo "Executing: $pb"
+              # We add '--extra-vars ansible_serial=1' to force one-by-one processing
               ansible-playbook -i ansible/inventory "ansible/$pb" \
                 --private-key $HOME/.ssh/id_rsa \
                 -u vagrant \
                 -e "ansible_become_password=vagrant" \
                 --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" \
-                --forks 1
+                --forks 1 -e "ansible_serial=1"
             else
-              echo "Skipping: $pb (File not found in ansible/ directory)"
+              echo "Skipping: $pb (Not found)"
             fi
           done
