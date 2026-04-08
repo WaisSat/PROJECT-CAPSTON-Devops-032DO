@@ -26,37 +26,37 @@ jobs:
         run: |
           # 1. Setup the SSH key
           mkdir -p $HOME/.ssh
-          # Use printf to preserve newlines in the SSH key
           printf "%s" "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
           # 2. Define Paths
           INV_PATH="ansible/inventory"
           
-          # 3. Create a clean temp directory for SSH sockets to avoid "muxclient" errors
+          # 3. Create clean socket directory
           mkdir -p $HOME/.ansible/cp
           
           echo "--- Starting Ansible Execution ---"
           
-          # Run playbooks with specific SSH arguments to prevent socket conflicts
-          COMMON_ARGS="-o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$HOME/.ansible/cp/%%h-%%p-%%r"
+          # Use ONE fork and disable persistent connections to save memory
+          # This is the safest way to avoid Error 137 on low-RAM runners
+          COMMON_ARGS="-o StrictHostKeyChecking=no -o ControlMaster=no -o ConnectTimeout=60"
 
           ansible-playbook -i "$INV_PATH" ansible/common.yml \
-            --forks 3 \
+            --forks 1 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
             --ssh-common-args="$COMMON_ARGS"
 
           ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
-            --forks 3 \
+            --forks 1 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
             --ssh-common-args="$COMMON_ARGS"
 
           ansible-playbook -i "$INV_PATH" ansible/site.yml \
-            --forks 3 \
+            --forks 1 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
