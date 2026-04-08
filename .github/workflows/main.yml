@@ -31,33 +31,26 @@ jobs:
 
           # 2. Define Paths
           INV_PATH="ansible/inventory"
-          
-          # 3. Create clean socket directory
-          mkdir -p $HOME/.ansible/cp
-          
-          echo "--- Starting Ansible Execution ---"
-          
-          # Use ONE fork and disable persistent connections to save memory
-          # This is the safest way to avoid Error 137 on low-RAM runners
           COMMON_ARGS="-o StrictHostKeyChecking=no -o ControlMaster=no -o ConnectTimeout=60"
+          
+          echo "--- Starting Memory-Optimized Ansible Execution ---"
 
-          ansible-playbook -i "$INV_PATH" ansible/common.yml \
-            --forks 1 \
-            --private-key $HOME/.ssh/id_rsa \
-            -u vagrant \
-            -e "ansible_become_password=vagrant" \
-            --ssh-common-args="$COMMON_ARGS"
+          # 3. Run Common Config in small subsets (3 nodes at a time)
+          # This prevents the 'Killed' (137) error by limiting the active host list
+          for group in "webservers" "dbservers" "others"; do
+            echo "Processing group: $group"
+            ansible-playbook -i "$INV_PATH" ansible/common.yml \
+              --limit "$group" \
+              --forks 1 \
+              --private-key $HOME/.ssh/id_rsa \
+              -u vagrant \
+              -e "ansible_become_password=vagrant" \
+              --ssh-common-args="$COMMON_ARGS"
+          done
 
+          # 4. Run Specific Setup Playbooks
           ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
-            --forks 1 \
-            --private-key $HOME/.ssh/id_rsa \
-            -u vagrant \
-            -e "ansible_become_password=vagrant" \
-            --ssh-common-args="$COMMON_ARGS"
+            --forks 1 --private-key $HOME/.ssh/id_rsa -u vagrant -e "ansible_become_password=vagrant" --ssh-common-args="$COMMON_ARGS"
 
           ansible-playbook -i "$INV_PATH" ansible/site.yml \
-            --forks 1 \
-            --private-key $HOME/.ssh/id_rsa \
-            -u vagrant \
-            -e "ansible_become_password=vagrant" \
-            --ssh-common-args="$COMMON_ARGS"
+            --forks 1 --private-key $HOME/.ssh/id_rsa -u vagrant -e "ansible_become_password=vagrant" --ssh-common-args="$COMMON_ARGS"
