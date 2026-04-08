@@ -24,7 +24,7 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key correctly for the runner
+          # 1. Setup the SSH key correctly
           mkdir -p $HOME/.ssh
           printf "%s" "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
@@ -35,10 +35,10 @@ jobs:
           
           echo "--- Starting Memory-Optimized Ansible Execution ---"
 
-          # 3. Process nodes in groups to avoid Out of Memory (Error 137)
-          # '|| true' ensures that if a group like 'others' doesn't exist, the script keeps moving
-          for target in "webservers" "dbservers" "lb" "monitoring" "control_nodes" "all"; do
-            echo "Processing target group: $target"
+          # 3. Process nodes individually or in very small groups to avoid Error 137
+          # Removed 'all' to prevent massive memory spikes
+          for target in "webservers" "dbservers" "lb" "prdx-dns101" "prdx-nagios101" "prdx-dprimary101" "prdx-kube101"; do
+            echo "Processing target: $target"
             ansible-playbook -i "$INV_PATH" ansible/common.yml \
               --limit "$target" \
               --forks 1 \
@@ -51,6 +51,7 @@ jobs:
           # 4. Run Database specific setup
           echo "--- Running Database Setup ---"
           ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
+            --limit "dbservers" \
             --forks 1 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
@@ -60,6 +61,7 @@ jobs:
           # 5. Run Main Site deployment
           echo "--- Running Site Deployment ---"
           ansible-playbook -i "$INV_PATH" ansible/site.yml \
+            --limit "webservers" \
             --forks 1 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
