@@ -12,6 +12,8 @@
           - net-tools
           - epel-release
         state: present
+      # This skips the task ONLY for the controller to save memory
+      when: inventory_hostname != 'prdx-ansible101'
       ignore_errors: yes
 
     - name: Ensure SSH directory exists for vagrant user
@@ -25,3 +27,9 @@
     - name: Disable SELinux (common for Lab environments)
       selinux:
         state: disabled
+
+    - name: Ensure SELinux is disabled in config file
+      lineinfile:
+        path: /etc/selinux/config
+        regexp: '^SELINUX='
+        line: 'SELINUX=disabled'
