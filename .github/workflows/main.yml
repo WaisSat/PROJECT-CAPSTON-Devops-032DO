@@ -2,7 +2,7 @@ name: Ansible Full Stack Deployment
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -10,7 +10,6 @@ jobs:
     runs-on: self-hosted
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-    
     defaults:
       run:
         shell: bash
@@ -30,14 +29,29 @@ jobs:
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Define Paths (Verified from logs)
+          # 2. Define Paths (Verified from your repo)
           INV_PATH="ansible/inventory"
-          PLAYBOOK_PATH="ansible/site.yml"
-
-          # 3. Run the playbook
+          
+          # 3. Run the playbooks in order
           echo "--- Starting Ansible Execution ---"
-          ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
+          
+          # Run common config
+          ansible-playbook -i "$INV_PATH" ansible/common.yml \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
+            --ssh-common-args="-o StrictHostKeyChecking=no"
+
+          # Run Database setup
+          ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
+            --private-key $HOME/.ssh/id_rsa \
+            -u vagrant \
+            -e "ansible_become_password=vagrant" \
+            --ssh-common-args="-o StrictHostKeyChecking=no"
+
+          # Run Main Site deployment
+          ansible-playbook -i "$INV_PATH" ansible/site.yml \
+            --private-key $HOME/.ssh/id_rsa \
+            -u vagrant \
+            -e "ansible_become_password=vagrant" \
+            --ssh-common-args="-o StrictHostKeyChecking=no"
