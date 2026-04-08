@@ -29,14 +29,15 @@ jobs:
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Define Paths (Verified from your repo)
+          # 2. Define Paths
           INV_PATH="ansible/inventory"
           
-          # 3. Run the playbooks in order
+          # 3. Run playbooks with --forks 3 to prevent Out of Memory (Error 137)
           echo "--- Starting Ansible Execution ---"
           
-          # Run common config
+          # Run common config (Limited to 3 parallel workers)
           ansible-playbook -i "$INV_PATH" ansible/common.yml \
+            --forks 3 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
@@ -44,6 +45,7 @@ jobs:
 
           # Run Database setup
           ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
+            --forks 3 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
@@ -51,6 +53,7 @@ jobs:
 
           # Run Main Site deployment
           ansible-playbook -i "$INV_PATH" ansible/site.yml \
+            --forks 3 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
