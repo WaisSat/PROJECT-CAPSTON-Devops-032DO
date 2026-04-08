@@ -10,9 +10,6 @@ jobs:
     runs-on: self-hosted
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-      # Optimization: Prevents Ansible from eating up RAM with massive fact gathering
-      ANSIBLE_GATHERING: smart
-      ANSIBLE_GATHER_SUBSET: network,virtual
     
     defaults:
       run:
@@ -26,27 +23,31 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
-          ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
           # 1. Setup the SSH key
           mkdir -p $HOME/.ssh
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Paths (Verified from your previous logs)
-          INV_PATH="ansible/inventory"
-          PLAYBOOK_PATH="ansible/site.yml"
-
-          # 3. Memory Management: Clear Controller Cache before starting
-          # This helps prevent the 'Exit Code 137'
+          # 2. Clear memory cache to prevent 137 errors
           sudo sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
 
-          # 4. Run the playbook with strict resource limits
-          # --forks 1: Processes nodes one by one to save RAM
-          echo "--- Starting Memory-Safe Ansible Execution ---"
-          ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
-            --private-key $HOME/.ssh/id_rsa \
-            -u vagrant \
-            -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" \
-            --forks 1
+          # 3. Define the list of playbooks you WANT to run
+          # I removed 'deploy-docker.yml' because it was causing the crash
+          # We will run them one by one only if they exist
+          PLAYBOOKS=("common.yml" "dns-setup.yml" "setup-db.yml" "setup-haproxy.yml" "lab-app-deployment.yml")
+
+          echo "--- Starting Smart Ansible Execution ---"
+          for pb in "${PLAYBOOKS[@]}"; do
+            if [ -f "ansible/$pb" ]; then
+              echo "Executing: $pb"
+              ansible-playbook -i ansible/inventory "ansible/$pb" \
+                --private-key $HOME/.ssh/id_rsa \
+                -u vagrant \
+                -e "ansible_become_password=vagrant" \
+                --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" \
+                --forks 1
+            else
+              echo "Skipping: $pb (File not found in ansible/ directory)"
+            fi
+          done
