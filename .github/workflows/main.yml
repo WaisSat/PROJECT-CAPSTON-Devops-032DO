@@ -10,7 +10,7 @@ jobs:
     runs-on: self-hosted
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-      # Stop Ansible from holding massive fact data in memory
+      # Global Ansible optimizations for low-resource environments
       ANSIBLE_GATHERING: explicit
       ANSIBLE_CACHE_PLUGIN: memory
     
@@ -27,29 +27,46 @@ jobs:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
-          # 1. Setup the SSH key
+          # 1. Setup the SSH key for the vagrant user
           mkdir -p $HOME/.ssh
           echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
-
-          # 2. Force the Controller to drop all background junk
-          sudo sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
-
-          # 3. Define Playbooks (Added setup-db back in)
+          
+          # 2. Define the execution order
           PLAYBOOKS=("common.yml" "dns-setup.yml" "setup-db.yml" "setup-haproxy.yml" "lab-app-deployment.yml")
-
+          
           echo "--- Starting Ultra-Lean Execution ---"
+          
           for pb in "${PLAYBOOKS[@]}"; do
             if [ -f "ansible/$pb" ]; then
-              echo "Executing: $pb"
-              # We add '--extra-vars ansible_serial=1' to force one-by-one processing
+              echo "**************************************************"
+              echo "Executing Playbook: $pb"
+              echo "**************************************************"
+              
+              # Force clear RAM before each playbook run
+              sudo sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
+              
               ansible-playbook -i ansible/inventory "ansible/$pb" \
                 --private-key $HOME/.ssh/id_rsa \
                 -u vagrant \
                 -e "ansible_become_password=vagrant" \
                 --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" \
-                --forks 1 -e "ansible_serial=1"
+                --forks 1 \
+                -e "ansible_serial=1"
+                
+              # Check if the last command failed
+              if [ $? -ne 0 ]; then
+                echo "Error: Playbook $pb failed. Aborting workflow."
+                exit 1
+              fi
             else
-              echo "Skipping: $pb (Not found)"
+              # Warning if a playbook is missing, but continues for optional components
+              echo "Warning: $pb not found in ansible/ directory. Skipping..."
             fi
           done
+
+      - name: Post-Deployment Cleanup
+        run: |
+          # Remove the private key for security
+          rm -f $HOME/.ssh/id_rsa
+          echo "Deployment cycle complete."
