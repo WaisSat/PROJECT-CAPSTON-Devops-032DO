@@ -2,7 +2,7 @@ name: Ansible Full Stack Deployment
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -10,6 +10,10 @@ jobs:
     runs-on: self-hosted
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      # Optimization: Prevents Ansible from eating up RAM with massive fact gathering
+      ANSIBLE_GATHERING: smart
+      ANSIBLE_GATHER_SUBSET: network,virtual
+    
     defaults:
       run:
         shell: bash
@@ -24,46 +28,25 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key correctly
+          # 1. Setup the SSH key
           mkdir -p $HOME/.ssh
-          printf "%s" "$SSH_KEY" > $HOME/.ssh/id_rsa
+          echo "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Define Paths and SSH Optimizations
+          # 2. Paths (Verified from your previous logs)
           INV_PATH="ansible/inventory"
-          COMMON_ARGS="-o StrictHostKeyChecking=no -o ControlMaster=no -o ConnectTimeout=60"
-          
-          echo "--- Starting Memory-Optimized Ansible Execution ---"
+          PLAYBOOK_PATH="ansible/site.yml"
 
-          # 3. Process nodes individually or in very small groups to avoid Error 137
-          # Removed 'all' to prevent massive memory spikes
-          for target in "webservers" "dbservers" "lb" "prdx-dns101" "prdx-nagios101" "prdx-dprimary101" "prdx-kube101"; do
-            echo "Processing target: $target"
-            ansible-playbook -i "$INV_PATH" ansible/common.yml \
-              --limit "$target" \
-              --forks 1 \
-              --private-key $HOME/.ssh/id_rsa \
-              -u vagrant \
-              -e "ansible_become_password=vagrant" \
-              --ssh-common-args="$COMMON_ARGS" || true
-          done
+          # 3. Memory Management: Clear Controller Cache before starting
+          # This helps prevent the 'Exit Code 137'
+          sudo sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
 
-          # 4. Run Database specific setup
-          echo "--- Running Database Setup ---"
-          ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
-            --limit "dbservers" \
-            --forks 1 \
+          # 4. Run the playbook with strict resource limits
+          # --forks 1: Processes nodes one by one to save RAM
+          echo "--- Starting Memory-Safe Ansible Execution ---"
+          ansible-playbook -i "$INV_PATH" "$PLAYBOOK_PATH" \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="$COMMON_ARGS"
-
-          # 5. Run Main Site deployment
-          echo "--- Running Site Deployment ---"
-          ansible-playbook -i "$INV_PATH" ansible/site.yml \
-            --limit "webservers" \
-            --forks 1 \
-            --private-key $HOME/.ssh/id_rsa \
-            -u vagrant \
-            -e "ansible_become_password=vagrant" \
-            --ssh-common-args="$COMMON_ARGS"
+            --ssh-common-args="-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" \
+            --forks 1
