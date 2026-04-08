@@ -23,40 +23,41 @@ jobs:
           SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
-          # FIX: Disable SSH Multiplexing to stop the "muxclient" error
-          ANSIBLE_SSH_CONTROL_PATH: /dev/null
         run: |
           # 1. Setup the SSH key
           mkdir -p $HOME/.ssh
-          echo "$SSH_KEY" > $HOME/.ssh/id_rsa
+          # Use printf to preserve newlines in the SSH key
+          printf "%s" "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
           # 2. Define Paths
           INV_PATH="ansible/inventory"
           
-          # 3. Run playbooks with --forks 3 (Memory fix) and -o ControlMaster=no (SSH fix)
+          # 3. Create a clean temp directory for SSH sockets to avoid "muxclient" errors
+          mkdir -p $HOME/.ansible/cp
+          
           echo "--- Starting Ansible Execution ---"
           
-          # Run common config
+          # Run playbooks with specific SSH arguments to prevent socket conflicts
+          COMMON_ARGS="-o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$HOME/.ansible/cp/%%h-%%p-%%r"
+
           ansible-playbook -i "$INV_PATH" ansible/common.yml \
             --forks 3 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o ControlMaster=no"
+            --ssh-common-args="$COMMON_ARGS"
 
-          # Run Database setup
           ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
             --forks 3 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o ControlMaster=no"
+            --ssh-common-args="$COMMON_ARGS"
 
-          # Run Main Site deployment
           ansible-playbook -i "$INV_PATH" ansible/site.yml \
             --forks 3 \
             --private-key $HOME/.ssh/id_rsa \
             -u vagrant \
             -e "ansible_become_password=vagrant" \
-            --ssh-common-args="-o StrictHost
+            --ssh-common-args="$COMMON_ARGS"
