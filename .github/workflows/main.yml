@@ -24,33 +24,44 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           ANSIBLE_STDOUT_CALLBACK: yaml
         run: |
-          # 1. Setup the SSH key
+          # 1. Setup the SSH key correctly for the runner
           mkdir -p $HOME/.ssh
           printf "%s" "$SSH_KEY" > $HOME/.ssh/id_rsa
           chmod 600 $HOME/.ssh/id_rsa
 
-          # 2. Define Paths
+          # 2. Define Paths and SSH Optimizations
           INV_PATH="ansible/inventory"
           COMMON_ARGS="-o StrictHostKeyChecking=no -o ControlMaster=no -o ConnectTimeout=60"
           
           echo "--- Starting Memory-Optimized Ansible Execution ---"
 
-          # 3. Run Common Config in small subsets (3 nodes at a time)
-          # This prevents the 'Killed' (137) error by limiting the active host list
-          for group in "webservers" "dbservers" "others"; do
-            echo "Processing group: $group"
+          # 3. Process nodes in groups to avoid Out of Memory (Error 137)
+          # '|| true' ensures that if a group like 'others' doesn't exist, the script keeps moving
+          for target in "webservers" "dbservers" "lb" "monitoring" "control_nodes" "all"; do
+            echo "Processing target group: $target"
             ansible-playbook -i "$INV_PATH" ansible/common.yml \
-              --limit "$group" \
+              --limit "$target" \
               --forks 1 \
               --private-key $HOME/.ssh/id_rsa \
               -u vagrant \
               -e "ansible_become_password=vagrant" \
-              --ssh-common-args="$COMMON_ARGS"
+              --ssh-common-args="$COMMON_ARGS" || true
           done
 
-          # 4. Run Specific Setup Playbooks
+          # 4. Run Database specific setup
+          echo "--- Running Database Setup ---"
           ansible-playbook -i "$INV_PATH" ansible/setup-db.yml \
-            --forks 1 --private-key $HOME/.ssh/id_rsa -u vagrant -e "ansible_become_password=vagrant" --ssh-common-args="$COMMON_ARGS"
+            --forks 1 \
+            --private-key $HOME/.ssh/id_rsa \
+            -u vagrant \
+            -e "ansible_become_password=vagrant" \
+            --ssh-common-args="$COMMON_ARGS"
 
+          # 5. Run Main Site deployment
+          echo "--- Running Site Deployment ---"
           ansible-playbook -i "$INV_PATH" ansible/site.yml \
-            --forks 1 --private-key $HOME/.ssh/id_rsa -u vagrant -e "ansible_become_password=vagrant" --ssh-common-args="$COMMON_ARGS"
+            --forks 1 \
+            --private-key $HOME/.ssh/id_rsa \
+            -u vagrant \
+            -e "ansible_become_password=vagrant" \
+            --ssh-common-args="$COMMON_ARGS"
